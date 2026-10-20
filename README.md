@@ -6,6 +6,16 @@ A dead zone can only hide small drift. This tool finds where each stick **actual
 
 Tested on a clone DS4 whose left stick rested at **-0.67** and could only reach 40% of its travel to the right. After the fix it rests at **0.00** and draws a full circle.
 
+## Results
+
+| Before: left stick stuck left with no hands on it | Before: circularity test, most of the circle missing |
+|---|---|
+| ![Before - stick resting at -1.00](docs/before-resting.png) | ![Before - circularity test](docs/before-circularity.png) |
+
+**After:** both sticks rest at 0.00, and the circularity error drops to 0.0% (left) and 1.9% (right).
+
+![After - fixed controller](docs/after.png)
+
 ## Features
 
 - Re-centres sticks that rest off-centre, however far off
