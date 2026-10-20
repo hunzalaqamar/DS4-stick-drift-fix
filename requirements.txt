@@ -1,0 +1,2 @@
+hidapi>=0.14
+vgamepad>=0.1.0
