@@ -1,0 +1,5 @@
+# Learned per-controller calibration - specific to your own controller
+stick_ranges.json
+
+__pycache__/
+*.pyc
