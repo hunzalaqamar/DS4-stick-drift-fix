@@ -1,5 +1,13 @@
-# Learned per-controller calibration - specific to your own controller
+# Learned per-controller calibration from the v1 script
 stick_ranges.json
 
 __pycache__/
 *.pyc
+
+# Build output
+build/
+dist/
+*.spec
+
+# Local dev tooling
+.claude/
