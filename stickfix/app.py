@@ -1,7 +1,7 @@
 """Desktop window: pywebview (Edge WebView2) showing ui/, backed by the engine."""
 
+import logging
 import os
-import pathlib
 import sys
 import webbrowser
 
@@ -29,12 +29,16 @@ class Api:
         self._engine = engine
         self._store = store
         self._hwnd = None
+        self._ui_seen = False
 
     def title_theme(self, theme):
         if self._hwnd and theme in THEME_BG:
             winutil.title_bar(self._hwnd, theme == "dark", THEME_BG[theme])
 
     def state(self):
+        if not self._ui_seen:
+            self._ui_seen = True
+            logging.getLogger("stickfix").info("Interface loaded")
         return self._engine.snapshot
 
     def set_fix(self, on):
@@ -109,7 +113,9 @@ def main():
     pref = store.settings["theme"]
     theme = pref if pref != "system" else ("dark" if winutil.system_dark() else "light")
     api = Api(engine, store)
-    url = pathlib.Path(resource("ui", "index.html")).as_uri() + "?theme=" + pref
+    # A plain path makes pywebview serve ui/ over its local HTTP server, where a
+    # query string works (Windows treats '?' in a file:// URL as part of the name).
+    url = resource("ui", "index.html") + "?theme=" + pref
     window = webview.create_window(
         "Stick Drift Fix", url, js_api=api, width=1240, height=820, min_size=(900, 620),
         background_color="#%02x%02x%02x" % THEME_BG[theme])
