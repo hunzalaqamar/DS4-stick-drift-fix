@@ -349,6 +349,13 @@ input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 18p
 .modal-card { background: var(--deck); border: 1px solid var(--rule); border-radius: var(--r-lg); padding: 26px 28px; width: min(640px, 92vw); box-shadow: var(--shadow); animation: rise .2s cubic-bezier(.2, .9, .3, 1.1); }
 .modal-card h2 { font-size: 24px; }
 .modal-card p { color: var(--muted); margin: 8px 0 18px; }
+.modal-card .steps { margin: 0 0 14px; padding-left: 22px; display: grid; gap: 8px; color: var(--muted); }
+.modal-card .steps b { color: var(--ink); font-weight: 600; }
+.modal-card .cmd {
+  display: block; margin: -8px 0 20px; padding: 10px 12px; border-radius: var(--r-sm);
+  background: var(--night-2); border: 1px solid var(--rule); color: var(--ink);
+  font: 13px/1.4 Consolas, "Cascadia Mono", monospace; overflow-wrap: anywhere; user-select: text;
+}
 .calib-gates { display: flex; justify-content: center; gap: 36px; }
 .calib-gate { display: flex; flex-direction: column; align-items: center; gap: 6px; font-family: var(--display); font-size: 16px; }
 .calib-gate canvas { width: 220px; height: 220px; }

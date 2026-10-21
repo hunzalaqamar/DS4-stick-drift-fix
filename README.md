@@ -34,7 +34,7 @@ Tested on a clone DS4 whose left stick rested at **-0.67** and could only reach 
 - **Manual re-centre:** hold Share + Options (View + Menu on Xbox) for a second, or press the button in the app
 - **Range calibration:** worn sticks that can't reach the edge still give 100% output
 - **Controller tester:** buttons, triggers, circularity test, vibration and light bar
-- **Hides the original controller** from games through HidHide, so games only see the fixed one
+- **Hides the original controller** from games through HidHide, so games only see the fixed one. It also checks that HidHide is really attached, and offers a one-click controller reset when it isn't.
 - **Games only:** while the desktop, File Explorer, Start or another Windows app is in front, the fixed controller sends nothing, so it never moves your selection in Windows
 - Xbox 360 or DualShock 4 output, light and dark themes
 
@@ -60,7 +60,13 @@ Settings and calibration are saved in `%APPDATA%\StickDriftFix`.
 ## Troubleshooting
 
 **Selections in Windows keep jumping left**
-Something is passing the drifting stick to Windows. Close DS4Windows, DSX or similar tools (the app offers a button), and keep *Only send input to games* on in Settings.
+Windows has its own controller navigation (File Explorer, Alt+Tab, Snipping Tool), and it's reading the drifting stick. Unplugging the controller stops it. To fix it:
+1. Close DS4Windows, DSX or similar tools (the app offers a button).
+2. Turn on *Hide the original controller from games* in Settings (needs HidHide).
+3. Still happening? HidHide can list the controller as hidden without being attached to it, and the app warns you when that happens. Click **Reset controller** in the warning, or go to Settings → *Reset controller connection*.
+
+**What "Reset controller" does**
+It restarts the controller in Windows: the same as *Disable* then *Enable* in Device Manager, or unplugging it. That gives HidHide a chance to attach. Before anything happens, the app shows exactly what will happen and the command it runs (`pnputil /restart-device "<controller id>"`). Windows then asks for admin approval, because restarting a device needs admin rights. The controller disconnects for a few seconds. Nothing is installed or changed permanently. If the warning stays after a reset, reinstall [HidHide](https://github.com/nefarius/HidHide/releases) and restart the PC.
 
 **Games see two controllers**
 Turn on *Hide the original controller from games* in Settings (needs HidHide), then unplug and replug the controller.
