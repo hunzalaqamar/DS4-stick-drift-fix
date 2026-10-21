@@ -246,7 +246,7 @@ function updateGyroMeter(el, d) {
 // ---- structure: picker, alerts, status, timeline -------------------------------
 function renderStructure() {
   const sig = JSON.stringify([state.devices.map(d => [d.id, d.name, d.type, d.power, d.virtual, d.gyro]), selected,
-    state.fix, state.vigem, state.hidhide, state.remappers, state.error, state.settings]);
+    state.fix, state.paused, state.vigem, state.hidhide, state.remappers, state.error, state.settings]);
   if (sig === structSig) return;
   structSig = sig;
   const d = device();
@@ -261,9 +261,10 @@ function renderStructure() {
   master.setAttribute("aria-checked", String(!!state.fix));
   $(".master-label", master).textContent = state.fix ? "Fix on" : "Fix off";
   master.disabled = !state.vigem.ok;
-  $("#outputNote").textContent = !state.vigem.ok ? "" : state.fix
-    ? `Games see a fixed ${state.settings.output === "ds4" ? "DualShock 4" : "Xbox 360"} controller`
-    : "Games see the original controller";
+  $("#outputNote").textContent = !state.vigem.ok ? "" : !state.fix ? "Games see the original controller"
+    : state.paused ? "Paused while a Windows window is in front"
+    : `Games see a fixed ${state.settings.output === "ds4" ? "DualShock 4" : "Xbox 360"} controller`;
+  $("#outputNote").classList.toggle("paused", !!(state.fix && state.paused));
 
   const alerts = [];
   if (state.error) alerts.push(["bad", `Controller support failed to start: ${esc(state.error)}`]);

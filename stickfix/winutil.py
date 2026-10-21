@@ -24,6 +24,36 @@ REMAPPERS = {
 }
 
 
+# Windows' own menus and apps move their selection with a controller. While
+# one of these is in front, the virtual controller sends nothing.
+WINDOWS_UI = {
+    "explorer.exe", "startmenuexperiencehost.exe", "searchhost.exe", "searchapp.exe",
+    "shellexperiencehost.exe", "shellhost.exe", "systemsettings.exe", "applicationframehost.exe",
+    "textinputhost.exe", "lockapp.exe", "snippingtool.exe", "screenclippinghost.exe",
+    "screensketch.exe", "taskmgr.exe", "winstore.app.exe", "photos.exe", "microsoft.photos.exe",
+    "notepad.exe", "mspaint.exe", "calculatorapp.exe", "windowsterminal.exe", "control.exe",
+    "mmc.exe", "rundll32.exe", "openwith.exe", "pickerhost.exe", "credentialuibroker.exe",
+}
+
+_user32 = ctypes.WinDLL("user32")
+_kernel32 = ctypes.WinDLL("kernel32")
+
+
+def foreground_process():
+    """(pid, exe name in lower case) of the window in front."""
+    pid = wintypes.DWORD()
+    _user32.GetWindowThreadProcessId(_user32.GetForegroundWindow(), ctypes.byref(pid))
+    name = ""
+    h = _kernel32.OpenProcess(0x1000, False, pid.value)  # PROCESS_QUERY_LIMITED_INFORMATION
+    if h:
+        buf = ctypes.create_unicode_buffer(260)
+        size = wintypes.DWORD(260)
+        if _kernel32.QueryFullProcessImageNameW(h, 0, buf, ctypes.byref(size)):
+            name = buf.value.rsplit("\\", 1)[-1].lower()
+        _kernel32.CloseHandle(h)
+    return pid.value, name
+
+
 def instance_from_path(path):
     r"""SDL device path '\\?\HID#VID_x&PID_y#8&abc&0&0000#{guid}' ->
     device instance id 'HID\VID_x&PID_y\8&abc&0&0000'."""

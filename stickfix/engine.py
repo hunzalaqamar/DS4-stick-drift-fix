@@ -24,6 +24,7 @@ SNAPSHOT_DT = 1 / 60
 PROFILE_SAVE_DT = 2.0
 NUM_BUTTONS = 21
 BACK, START = 4, 6
+NEUTRAL_BUTTONS = [False] * NUM_BUTTONS
 
 TYPE_NAMES = {1: "Xbox 360", 2: "Xbox One / Series", 3: "PS3", 4: "PS4", 5: "Switch Pro",
               7: "PS5", 8: "Amazon Luna", 9: "Stadia", 10: "NVIDIA Shield",
@@ -117,11 +118,16 @@ class Device:
     def send(self):
         if not self.pad:
             return
-        s = self.engine.settings
-        b = self.buttons
-        o = self.out
-        hide_menu = s["combo"] and b[BACK] and b[START]
         try:
+            if self.engine.paused:
+                # A Windows menu or app is in front: send a resting controller so
+                # Windows never moves its selection or presses anything.
+                self.pad.send(NEUTRAL_BUTTONS, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0)
+                return
+            s = self.engine.settings
+            b = self.buttons
+            o = self.out
+            hide_menu = s["combo"] and b[BACK] and b[START]
             self.pad.send(b, self.axes[4], self.axes[5], o[0], o[1], o[2], o[3], hide_menu)
         except Exception as e:
             self.pad_error = str(e)
@@ -203,6 +209,8 @@ class Engine(threading.Thread):
         self.remappers = []
         self.snapshot = {"ready": False, "devices": [], "events": []}
         self.sdl_error = None
+        self.paused = False        # True while a Windows menu/app is in front
+        self.paused_app = None
         self._stopping = False
         self._profiles_dirty_at = None
 
@@ -399,12 +407,31 @@ class Engine(threading.Thread):
                 except Exception as e:
                     box["error"] = e
                 box["done"].set()
+            elif item[0] == "refresh":
+                for d in self.devices.values():
+                    d.dirty = True
             elif item[0] == "rumble":
                 _, iid, large, small = item
                 d = self.devices.get(iid)
                 if d:
                     on = large or small
                     d.rumble(large * 257, small * 257, 10000 if on else 0)
+
+    def _watch_foreground(self):
+        me = os.getpid()
+        while not self._stopping:
+            try:
+                pid, exe = winutil.foreground_process()
+            except OSError:
+                pid, exe = 0, ""
+            paused = bool(self.settings["games_only"]) and (pid == me or exe in winutil.WINDOWS_UI)
+            self.paused_app = (exe or "this window") if paused else None
+            if paused != self.paused:
+                self.paused = paused
+                self.post(("refresh",))
+                logging.getLogger("stickfix.engine").info(
+                    "Output %s (%s in front)", "paused" if paused else "resumed", exe or "unknown")
+            time.sleep(0.1)
 
     def _watch_remappers(self):
         # tasklist is slow, so it never runs on the input thread.
@@ -419,6 +446,7 @@ class Engine(threading.Thread):
             "version": __version__,
             "error": self.sdl_error,
             "fix": self.settings["fix_enabled"],
+            "paused": self.paused,
             "settings": dict(self.settings),
             "vigem": {"ok": VIGEM_ERROR is None, "error": VIGEM_ERROR},
             "hidhide": {"installed": hh.installed, "active": hh.cloaked_by_us, "error": hh.error},
@@ -446,6 +474,7 @@ class Engine(threading.Thread):
         next_sample = next_check = next_snap = now
         next_second = now + 1
         threading.Thread(target=self._watch_remappers, name="remappers", daemon=True).start()
+        threading.Thread(target=self._watch_foreground, name="foreground", daemon=True).start()
         try:
             while not self._stopping:
                 self._commands()

@@ -5,7 +5,7 @@
   const settings = {
     fix_enabled: true, output: "xbox360", deadzone: 0.06, outer: 0.97, smart_recenter: true, smart_settle: 0.4,
     auto_putdown: true, putdown_sec: 1.5, gyro_still: 0.015, idle_recenter: true, idle_sec: 5, combo: true,
-    combo_sec: 1, feedback: true, hide_original: false, theme: "system",
+    combo_sec: 1, feedback: true, hide_original: false, theme: "system", games_only: true,
   };
   const events = [
     { id: 1, time: "17:20:01", kind: "info", msg: "Engine started (SDL 2.32.10)", device: null },
