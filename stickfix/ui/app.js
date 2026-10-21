@@ -268,7 +268,10 @@ function renderStructure() {
   const alerts = [];
   if (state.error) alerts.push(["bad", `Controller support failed to start: ${esc(state.error)}`]);
   if (!state.vigem.ok) alerts.push(["bad", "The ViGEmBus driver isn't installed, so the fixed controller can't be created.", "Get ViGEmBus", "vigem"]);
-  if (state.remappers.length) alerts.push(["", `<b>${esc(state.remappers.join(" and "))}</b> is running. It makes its own virtual controller, so games may see two. Close it while using Stick Drift Fix.`]);
+  if (state.remappers.length) {
+    const names = esc(state.remappers.join(" and "));
+    alerts.push(["bad", `<b>${names}</b> is running and passes the drifting stick straight through, so games, and Windows menus, still see the drift. Close it while using Stick Drift Fix.`, `Close ${names}`, "close-remappers"]);
+  }
   for (const x of state.devices) if (x.virtual.error) alerts.push(["bad", `Couldn't create the fixed controller for ${esc(x.name)}: ${esc(x.virtual.error)}`]);
   if (state.hidhide.error && state.settings.hide_original) alerts.push(["bad", `Hiding the original controller failed: ${esc(state.hidhide.error)}`]);
   if (state.fix && state.devices.length && !state.settings.hide_original && state.vigem.ok) {
@@ -602,6 +605,7 @@ function wire() {
     e.preventDefault();
     const act = a.dataset.act;
     if (act === "hide") call("set_hiding", true);
+    else if (act === "close-remappers") call("close_remappers");
     else call("open_link", act);
   });
 

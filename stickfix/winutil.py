@@ -76,6 +76,19 @@ def running_remappers():
     return found
 
 
+def close_remappers():
+    """End the remapping tools we detected (the user clicked the button)."""
+    out = subprocess.run(["tasklist", "/FO", "CSV", "/NH"], capture_output=True, text=True,
+                         creationflags=0x08000000).stdout.lower()
+    closed = []
+    for exe, name in REMAPPERS.items():
+        if f'"{exe}"' in out:
+            subprocess.run(["taskkill", "/IM", exe, "/F"], capture_output=True, creationflags=0x08000000)
+            if name not in closed:
+                closed.append(name)
+    return closed
+
+
 _mutex = None
 
 

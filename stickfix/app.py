@@ -71,6 +71,13 @@ class Api:
     def led(self, dev_id, r, g, b):
         self._engine.call(self._engine.test_led, int(dev_id), int(r), int(g), int(b))
 
+    def close_remappers(self):
+        closed = winutil.close_remappers()
+        self._engine.remappers = []
+        if closed:
+            self._engine.log("fix", "Closed " + " and ".join(closed))
+        return closed
+
     def open_link(self, name):
         if name in LINKS:
             webbrowser.open(LINKS[name])
