@@ -245,7 +245,7 @@ function updateGyroMeter(el, d) {
 
 // ---- structure: picker, alerts, status, timeline -------------------------------
 function renderStructure() {
-  const sig = JSON.stringify([state.devices.map(d => [d.id, d.name, d.type, d.power, d.virtual, d.gyro]), selected,
+  const sig = JSON.stringify([state.devices.map(d => [d.id, d.name, d.type, d.power, d.virtual, d.gyro, d.hidhideAttached]), selected,
     state.fix, state.paused, state.vigem, state.hidhide, state.remappers, state.error, state.settings]);
   if (sig === structSig) return;
   structSig = sig;
@@ -275,13 +275,17 @@ function renderStructure() {
   }
   for (const x of state.devices) if (x.virtual.error) alerts.push(["bad", `Couldn't create the fixed controller for ${esc(x.name)}: ${esc(x.virtual.error)}`]);
   if (state.hidhide.error && state.settings.hide_original) alerts.push(["bad", `Hiding the original controller failed: ${esc(state.hidhide.error)}`]);
+  if (state.fix && state.settings.hide_original && state.hidhide.installed) {
+    for (const x of state.devices) if (x.hidhideAttached === false)
+      alerts.push(["bad", `HidHide isn't attached to <b>${esc(x.name)}</b>, so Windows still reads its drifting stick and can move your selection in File Explorer. Resetting the controller fixes this.`, "Reset controller…", "reset-device", x.id]);
+  }
   if (state.fix && state.devices.length && !state.settings.hide_original && state.vigem.ok) {
     alerts.push(state.hidhide.installed
-      ? ["", "Games can still see the original controller next to the fixed one.", "Hide it", "hide"]
-      : ["", "Games can still see the original controller next to the fixed one. Install HidHide to hide it.", "Get HidHide", "hidhide"]);
+      ? ["", "Games and Windows can still see the original, drifting controller next to the fixed one.", "Hide it", "hide"]
+      : ["", "Games and Windows can still see the original, drifting controller next to the fixed one. Install HidHide to hide it.", "Get HidHide", "hidhide"]);
   }
-  $("#alerts").innerHTML = alerts.map(([cls, msg, btn, act]) =>
-    `<div class="alert ${cls}"><p>${msg}</p>${btn ? `<button class="btn" data-act="${act}">${btn}</button>` : ""}</div>`).join("");
+  $("#alerts").innerHTML = alerts.map(([cls, msg, btn, act, id]) =>
+    `<div class="alert ${cls}"><p>${msg}</p>${btn ? `<button class="btn" data-act="${act}"${id != null ? ` data-id="${id}"` : ""}>${btn}</button>` : ""}</div>`).join("");
 
   const l = labels(d);
   $("#comboHint").textContent = l.combo;
@@ -525,6 +529,39 @@ function renderCalibration(d) {
   }
 }
 
+// ---- reset controller ---------------------------------------------------------------
+const reset = { open: false, id: null, busy: false };
+
+async function openReset(id) {
+  const d = state.devices.find(x => x.id === id) || device();
+  if (!d || reset.busy) return;
+  reset.open = true;
+  reset.id = d.id;
+  $("#resetName").textContent = d.name;
+  $("#resetCmd").textContent = (await call("reset_command", d.id)) || "pnputil /restart-device <controller>";
+  $("#resetGo").disabled = false;
+  $("#resetGo").textContent = "Reset controller";
+  $("#resetDlg").hidden = false;
+  $("#resetCancel").focus();
+}
+
+function closeReset() {
+  if (reset.busy) return;
+  reset.open = false;
+  $("#resetDlg").hidden = true;
+}
+
+async function runReset() {
+  if (reset.busy) return;
+  reset.busy = true;
+  $("#resetGo").disabled = $("#resetCancel").disabled = true;
+  $("#resetGo").textContent = "Waiting for Windows…";
+  try { await call("reset_controller", reset.id); } catch (e) { console.error(e); }
+  reset.busy = false;
+  $("#resetCancel").disabled = false;
+  closeReset();
+}
+
 // ---- frame loop -------------------------------------------------------------------
 function onState(s) {
   state = s;
@@ -597,7 +634,13 @@ function wire() {
   $("#btnCalibrate").addEventListener("click", openCalibration);
   $("#calibCancel").addEventListener("click", () => closeCalibration(false));
   $("#calibSave").addEventListener("click", () => closeCalibration(true));
-  document.addEventListener("keydown", e => { if (e.key === "Escape" && calib.open) closeCalibration(false); });
+  document.addEventListener("keydown", e => {
+    if (e.key !== "Escape") return;
+    if (calib.open) closeCalibration(false);
+    if (reset.open) closeReset();
+  });
+  $("#resetCancel").addEventListener("click", closeReset);
+  $("#resetGo").addEventListener("click", runReset);
   $("#btnReset").addEventListener("click", () => { const d = device(); if (d) call("reset_profile", d.id); });
 
   document.addEventListener("click", e => {
@@ -607,6 +650,7 @@ function wire() {
     const act = a.dataset.act;
     if (act === "hide") call("set_hiding", true);
     else if (act === "close-remappers") call("close_remappers");
+    else if (act === "reset-device") openReset(a.dataset.id != null ? +a.dataset.id : selected);
     else call("open_link", act);
   });
 

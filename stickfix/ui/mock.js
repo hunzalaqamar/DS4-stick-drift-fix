@@ -37,7 +37,7 @@
       left: { centre: [-0.66, -0.01], lo: [-1, -1], hi: [-0.2, 1], edge: false, calib: null },
       right: { centre: [-0.15, -0.1], lo: [-1, -1], hi: [1, 1], edge: false, calib: null },
       calibrated: true, calibrating: false,
-      virtual: { on: fix, kind: settings.output, error: null }, rate: 250,
+      virtual: { on: fix, kind: settings.output, error: null }, hidhideAttached: false, rate: 250,
     };
   }
 
@@ -58,5 +58,7 @@
     led: async () => {},
     open_link: async () => {},
     close_remappers: async () => [],
+    reset_command: async () => 'pnputil /restart-device "HID\\VID_054C&PID_09CC&MI_03\\8&AF891E9&0&0000"',
+    reset_controller: async () => new Promise(r => setTimeout(() => r("ok"), 1500)),
   };
 })();

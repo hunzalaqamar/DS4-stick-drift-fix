@@ -48,6 +48,7 @@ class Device:
         self.js = js
         self.iid = S.SDL_JoystickInstanceID(js)
         self.instance = instance
+        self.hidhide_attached = winutil.hidhide_attached(instance)
         self.name = _s(S.SDL_GameControllerName(self.gc)) or "Controller"
         self.vid = S.SDL_GameControllerGetVendor(self.gc)
         self.pid = S.SDL_GameControllerGetProduct(self.gc)
@@ -191,6 +192,7 @@ class Device:
             "calibrated": self.guard.calibrated, "calibrating": self.calibrating,
             "virtual": {"on": self.pad is not None, "kind": self.pad.kind if self.pad else None,
                         "error": self.pad_error},
+            "hidhideAttached": self.hidhide_attached,
             "rate": self.rate,
         }
 
@@ -313,7 +315,55 @@ class Engine(threading.Thread):
         if d and d.has_led:
             S.SDL_GameControllerSetLED(d.gc, int(r), int(g), int(b))
 
+    def reset_device(self, dev_id):
+        """Restart the controller's driver so HidHide attaches to it again.
+        Windows shows an admin prompt, so this runs on the caller's thread,
+        not the engine's. Returns 'ok', 'reboot', 'cancelled' or an error."""
+        d = self.devices.get(dev_id)
+        if not d or not d.instance:
+            return "No controller to reset"
+        name, instance = d.name, d.instance
+        self.log("info", "Resetting the controller - approve the Windows prompt", name)
+        # Let go of the device first so Windows doesn't need a reboot to restart it.
+        self.call(self._release, dev_id)
+        result = winutil.restart_device(instance)
+        if result != "ok":
+            self.call(self._reattach, instance)
+        if result == "cancelled":
+            self.log("info", "Reset cancelled", name)
+        elif result == "reboot":
+            self.log("warn", "Windows needs a restart to finish resetting the controller", name)
+        elif result != "ok":
+            self.log("warn", "Couldn't reset the controller: " + result, name)
+        else:
+            deadline = time.time() + 8
+            back = None
+            while time.time() < deadline and not back:
+                time.sleep(0.25)
+                back = next((x for x in list(self.devices.values()) if x.instance == instance), None)
+            if not back:
+                self.log("warn", "Controller reset, but it hasn't come back yet. Try unplugging it", name)
+            elif self.hidhide.installed and back.hidhide_attached is False:
+                self.log("warn", "Controller reset, but HidHide still isn't attached. Reinstall HidHide and restart Windows", name)
+            else:
+                self.log("fix", "Controller reset" + (" - HidHide is attached again" if self.hidhide.installed else ""), name)
+        return result
+
     # -- internals -----------------------------------------------------------
+    def _release(self, dev_id):
+        d = self.devices.pop(dev_id, None)
+        if d:
+            self._save_device(d)
+            d.close()
+            self.ignored.add(dev_id)
+
+    def _reattach(self, instance):
+        """Open a released controller again (the reset was cancelled or failed)."""
+        for i in range(S.SDL_NumJoysticks()):
+            if winutil.instance_from_path(S.SDL_JoystickPathForIndex(i)) == instance:
+                self.ignored.discard(S.SDL_JoystickGetDeviceInstanceID(i))
+                self._add(i)
+
     def _mark_profiles(self):
         self._profiles_dirty_at = self._profiles_dirty_at or time.perf_counter()
 
@@ -433,10 +483,12 @@ class Engine(threading.Thread):
                     "Output %s (%s in front)", "paused" if paused else "resumed", exe or "unknown")
             time.sleep(0.1)
 
-    def _watch_remappers(self):
+    def _watch_system(self):
         # tasklist is slow, so it never runs on the input thread.
         while not self._stopping:
             self.remappers = winutil.running_remappers()
+            for d in list(self.devices.values()):
+                d.hidhide_attached = winutil.hidhide_attached(d.instance)
             time.sleep(5)
 
     def _build_snapshot(self):
@@ -456,6 +508,7 @@ class Engine(threading.Thread):
         }
 
     def run(self):
+        self.hidhide.allow(self._app_paths())
         S.SDL_SetHint(b"SDL_JOYSTICK_ALLOW_BACKGROUND_EVENTS", b"1")
         S.SDL_SetHint(b"SDL_JOYSTICK_HIDAPI_PS4_RUMBLE", b"1")
         S.SDL_SetHint(b"SDL_JOYSTICK_HIDAPI_PS5_RUMBLE", b"1")
@@ -473,7 +526,7 @@ class Engine(threading.Thread):
         now = time.perf_counter()
         next_sample = next_check = next_snap = now
         next_second = now + 1
-        threading.Thread(target=self._watch_remappers, name="remappers", daemon=True).start()
+        threading.Thread(target=self._watch_system, name="system", daemon=True).start()
         threading.Thread(target=self._watch_foreground, name="foreground", daemon=True).start()
         try:
             while not self._stopping:
