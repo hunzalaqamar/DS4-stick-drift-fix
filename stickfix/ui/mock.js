@@ -57,5 +57,6 @@
     rumble: async () => {},
     led: async () => {},
     open_link: async () => {},
+    close_remappers: async () => [],
   };
 })();
