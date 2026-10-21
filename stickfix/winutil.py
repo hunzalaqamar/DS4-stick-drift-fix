@@ -10,6 +10,8 @@ _cfg = ctypes.WinDLL("cfgmgr32")
 _cfg.CM_Locate_DevNodeW.argtypes = [ctypes.POINTER(wintypes.DWORD), wintypes.LPCWSTR, wintypes.ULONG]
 _cfg.CM_Get_Parent.argtypes = [ctypes.POINTER(wintypes.DWORD), wintypes.DWORD, wintypes.ULONG]
 _cfg.CM_Get_Device_IDW.argtypes = [wintypes.DWORD, wintypes.LPWSTR, wintypes.ULONG, wintypes.ULONG]
+_cfg.CM_Get_DevNode_PropertyW.argtypes = [wintypes.DWORD, ctypes.c_void_p, ctypes.POINTER(wintypes.ULONG),
+                                          ctypes.c_void_p, ctypes.POINTER(wintypes.ULONG), wintypes.ULONG]
 
 # Other tools that create their own virtual controllers.
 REMAPPERS = {
@@ -91,6 +93,77 @@ def is_virtual(instance):
     if not instance:
         return False
     return any(p.startswith("ROOT\\") for p in _parent_ids(instance, 3))
+
+
+class _DEVPROPKEY(ctypes.Structure):
+    _fields_ = [("guid", ctypes.c_byte * 16), ("pid", wintypes.ULONG)]
+
+
+def _devpkey(guid, pid):
+    import uuid
+    key = _DEVPROPKEY()
+    ctypes.memmove(key.guid, uuid.UUID(guid).bytes_le, 16)
+    key.pid = pid
+    return key
+
+
+DEVPKEY_DEVICE_STACK = _devpkey("540b947e-8b40-45bc-a8a2-6a0b894cbda2", 14)
+
+
+def driver_stack(instance):
+    r"""Drivers attached to a device, top first, e.g. ['\Driver\HidHide',
+    '\Driver\hidgamepad', '\Driver\HidUsb']. None if it can't be read."""
+    node = wintypes.DWORD()
+    if not instance or _cfg.CM_Locate_DevNodeW(ctypes.byref(node), instance, 0) != CR_SUCCESS:
+        return None
+    ptype, size = wintypes.ULONG(), wintypes.ULONG(2048)
+    buf = ctypes.create_string_buffer(size.value)
+    if _cfg.CM_Get_DevNode_PropertyW(node, ctypes.byref(DEVPKEY_DEVICE_STACK), ctypes.byref(ptype),
+                                     buf, ctypes.byref(size), 0) != CR_SUCCESS:
+        return None
+    text = buf.raw[:size.value].decode("utf-16-le", errors="ignore")
+    return [x for x in text.split("\0") if x]
+
+
+def hidhide_attached(instance):
+    """True/False when HidHide's filter is (not) in the device's driver stack;
+    None when Windows doesn't say. HidHide's settings can list a device as
+    hidden while its filter isn't attached, until the device restarts."""
+    stack = driver_stack(instance)
+    if stack is None:
+        return None
+    return any(x.lower().endswith("\\hidhide") for x in stack)
+
+
+def restart_device(instance):
+    """Restart a device with pnputil, the same as Disable then Enable in Device
+    Manager. Windows asks the user for admin approval first. Returns
+    'ok', 'reboot', 'cancelled' or an error message."""
+    class SEI(ctypes.Structure):
+        _fields_ = [("cbSize", wintypes.DWORD), ("fMask", wintypes.ULONG), ("hwnd", wintypes.HWND),
+                    ("lpVerb", wintypes.LPCWSTR), ("lpFile", wintypes.LPCWSTR),
+                    ("lpParameters", wintypes.LPCWSTR), ("lpDirectory", wintypes.LPCWSTR),
+                    ("nShow", ctypes.c_int), ("hInstApp", wintypes.HINSTANCE), ("lpIDList", ctypes.c_void_p),
+                    ("lpClass", wintypes.LPCWSTR), ("hkeyClass", wintypes.HKEY), ("dwHotKey", wintypes.DWORD),
+                    ("hIcon", wintypes.HANDLE), ("hProcess", wintypes.HANDLE)]
+
+    import os
+    pnputil = os.path.join(os.environ.get("SystemRoot", r"C:\Windows"), "System32", "pnputil.exe")
+    sei = SEI(cbSize=ctypes.sizeof(SEI), fMask=0x40, lpVerb="runas", lpFile=pnputil,  # NOCLOSEPROCESS
+              lpParameters=f'/restart-device "{instance}"', nShow=0)
+    shell32 = ctypes.WinDLL("shell32", use_last_error=True)
+    if not shell32.ShellExecuteExW(ctypes.byref(sei)):
+        err = ctypes.get_last_error()
+        return "cancelled" if err == 1223 else f"Windows error {err}"
+    _kernel32.WaitForSingleObject(sei.hProcess, 30000)
+    code = wintypes.DWORD()
+    _kernel32.GetExitCodeProcess(sei.hProcess, ctypes.byref(code))
+    _kernel32.CloseHandle(sei.hProcess)
+    if code.value == 0:
+        return "ok"
+    if code.value == 3010:  # ERROR_SUCCESS_REBOOT_REQUIRED
+        return "reboot"
+    return f"pnputil exit code {code.value}"
 
 
 def running_remappers():

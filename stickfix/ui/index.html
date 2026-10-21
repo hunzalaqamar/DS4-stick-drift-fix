@@ -274,6 +274,10 @@
             <div class="setting-text"><b>Reset calibration</b><span>Forget the learned range and centre for the selected controller.</span></div>
             <button class="btn danger" id="btnReset">Reset</button>
           </div>
+          <div class="setting">
+            <div class="setting-text"><b>Reset controller connection</b><span>Restarts the controller in Windows, like unplugging it. Use it when Windows menus still move on their own or a game still shows two controllers.</span></div>
+            <button class="btn" data-act="reset-device">Reset connection…</button>
+          </div>
         </section>
       </div>
     </section>
@@ -297,6 +301,25 @@
     <div class="row end">
       <button class="btn" id="calibCancel">Cancel</button>
       <button class="btn primary" id="calibSave">Save range</button>
+    </div>
+  </div>
+</div>
+
+<!-- Reset controller: say exactly what will happen before doing it -->
+<div class="modal" id="resetDlg" hidden>
+  <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="resetTitle">
+    <h2 id="resetTitle">Reset <span id="resetName">the controller</span>?</h2>
+    <p>This restarts the controller in Windows, the same as <i>Disable</i> then <i>Enable</i> in Device Manager. Here's what happens:</p>
+    <ol class="steps">
+      <li><b>Windows asks for permission.</b> Restarting a device needs administrator rights, so a prompt for <i>PnP Utility</i> appears. Click Yes to go ahead, or No to cancel.</li>
+      <li><b>The controller disconnects for a few seconds</b> and comes back by itself. A running game loses input for that moment.</li>
+      <li><b>HidHide attaches to it again</b>, so Windows menus and games stop seeing the drifting original.</li>
+    </ol>
+    <p>Nothing is installed, removed or changed permanently, and your settings and calibration stay. The command it runs:</p>
+    <code class="cmd" id="resetCmd"></code>
+    <div class="row end">
+      <button class="btn" id="resetCancel">Cancel</button>
+      <button class="btn primary" id="resetGo">Reset controller</button>
     </div>
   </div>
 </div>

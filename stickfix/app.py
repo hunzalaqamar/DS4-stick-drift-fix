@@ -71,6 +71,14 @@ class Api:
     def led(self, dev_id, r, g, b):
         self._engine.call(self._engine.test_led, int(dev_id), int(r), int(g), int(b))
 
+    def reset_controller(self, dev_id):
+        return self._engine.reset_device(int(dev_id))
+
+    def reset_command(self, dev_id):
+        """The exact command the reset runs, shown in the confirmation."""
+        d = self._engine.devices.get(int(dev_id))
+        return f'pnputil /restart-device "{d.instance}"' if d and d.instance else None
+
     def close_remappers(self):
         closed = winutil.close_remappers()
         self._engine.remappers = []

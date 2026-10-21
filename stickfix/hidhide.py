@@ -25,7 +25,7 @@ class HidHide:
     def _run(self, *args):
         try:
             r = subprocess.run([self.cli, *args], capture_output=True, text=True, timeout=10,
-                               creationflags=0x08000000)
+                               stdin=subprocess.DEVNULL, creationflags=0x08000000)
             if r.returncode != 0:
                 self.error = (r.stderr or r.stdout).strip() or f"HidHide exit code {r.returncode}"
             return r.stdout
@@ -36,16 +36,27 @@ class HidHide:
     def cloaked(self):
         return self.installed and "--cloak-on" in self._run("--cloak-state")
 
+    def allow(self, app_paths):
+        """Let our own process see hidden controllers. Done at startup too, or
+        a moved exe would never find a controller hidden on an earlier run."""
+        if not self.installed:
+            return
+        current = self._run("--app-list").lower()
+        args = []
+        for app in app_paths:
+            if f'"{app.lower()}"' not in current:
+                args += ["--app-reg", app]
+        if args:
+            self._run(*args)
+
     def hide(self, instances, app_paths):
         """Allow our own process through, add the devices, switch cloaking on."""
         if not self.installed:
             return False
         self.error = None
-        current = self._run("--app-list", "--dev-list").lower()
+        self.allow(app_paths)
+        current = self._run("--dev-list").lower()
         args = []
-        for app in app_paths:
-            if f'"{app.lower()}"' not in current:
-                args += ["--app-reg", app]
         for inst in instances:
             if f'"{inst.lower()}"' not in current:
                 args += ["--dev-hide", inst]
