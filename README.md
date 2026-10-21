@@ -16,6 +16,16 @@ Tested on a clone DS4 whose left stick rested at **-0.67** and could only reach 
 
 ![After - fixed controller](docs/after.png)
 
+## The app
+
+| Live view: the left stick reports -0.75, games receive 0.00 | Controller tester |
+|---|---|
+| ![Live view](docs/gui-2.png) | ![Controller tester](docs/gui-3.png) |
+
+| Settings | Waiting for a controller |
+|---|---|
+| ![Settings](docs/gui-4.png) | ![Empty state](docs/gui-1.png) |
+
 ## Features
 
 - **Live view:** see what the stick reports next to what games receive, with the learned range and rest point drawn in
@@ -25,6 +35,7 @@ Tested on a clone DS4 whose left stick rested at **-0.67** and could only reach 
 - **Range calibration:** worn sticks that can't reach the edge still give 100% output
 - **Controller tester:** buttons, triggers, circularity test, vibration and light bar
 - **Hides the original controller** from games through HidHide, so games only see the fixed one
+- **Games only:** while the desktop, File Explorer, Start or another Windows app is in front, the fixed controller sends nothing, so it never moves your selection in Windows
 - Xbox 360 or DualShock 4 output, light and dark themes
 
 ## Download
@@ -47,6 +58,9 @@ Windows may show "Windows protected your PC" because the exe isn't code-signed. 
 Settings and calibration are saved in `%APPDATA%\StickDriftFix`.
 
 ## Troubleshooting
+
+**Selections in Windows keep jumping left**
+Something is passing the drifting stick to Windows. Close DS4Windows, DSX or similar tools (the app offers a button), and keep *Only send input to games* on in Settings.
 
 **Games see two controllers**
 Turn on *Hide the original controller from games* in Settings (needs HidHide), then unplug and replug the controller.

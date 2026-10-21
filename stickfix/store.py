@@ -23,6 +23,7 @@ DEFAULTS = {
     "feedback": True,          # buzz / light bar flash on re-centre
     "hide_original": False,    # use HidHide so games only see the fixed controller
     "theme": "system",         # "system", "light" or "dark"
+    "games_only": True,        # send nothing while Windows menus/apps are in front
 }
 CHOICES = {"output": ("xbox360", "ds4"), "theme": ("system", "light", "dark")}
 

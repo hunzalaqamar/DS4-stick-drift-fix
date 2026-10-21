@@ -140,6 +140,7 @@ h1, h2, h3, h4 { font-family: var(--display); font-weight: 600; margin: 0; lette
 
 .topbar-right { display: flex; align-items: center; gap: 18px; flex: none; }
 .output-note { color: var(--muted); font-size: 13px; }
+.output-note.paused { color: var(--raw); }
 .master {
   display: flex; align-items: center; gap: 10px;
   background: none; border: 0; cursor: pointer; padding: 6px 4px;
